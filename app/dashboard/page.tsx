@@ -54,19 +54,10 @@ interface AdminOrder extends UserOrder {
 
 export default function DashboardPage() {
   const router = useRouter();
-
-  const [username] = useState<string>(() => {
-    const token = getAccessToken();
-    if (!token || token.split(".").length !== 3) return "User";
-
-    try {
-      const decoded = jwtDecode<DecodedToken>(token);
-      return decoded.username || decoded.sub || "User";
-    } catch {
-      return "User";
-    }
-  });
-  const isAdmin = username === "pamplona" || username === "fimperial";
+  const [isChecking, setIsChecking] = useState(true);
+  
+  const [username, setUsername] = useState<string>("User");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<MenuItem[]>([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
@@ -91,7 +82,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const token = getAccessToken();
-
     if (!token) {
       router.replace(CONFIG.ROUTES.LOGIN);
       return;
@@ -102,12 +92,16 @@ export default function DashboardPage() {
       if (token.split('.').length === 3) {
         const decoded = jwtDecode<DecodedToken>(token);
         const tokenUsername = decoded.username || decoded.sub;
-
-        if (!tokenUsername) {
-          throw new Error("Invalid token payload: missing username");
+        if (tokenUsername) {
+          queueMicrotask(() => setUsername(tokenUsername));
         }
 
-        // Administrator privileges are derived from the decoded username.
+        // Allow administrator privileges for username "pamplona" or "fimperial"
+        if (tokenUsername === 'pamplona' || tokenUsername === 'fimperial') {
+          queueMicrotask(() => setIsAdmin(true));
+        } else {
+          queueMicrotask(() => setIsAdmin(false));
+        }
       } else {
         throw new Error("Invalid token structure");
       }
@@ -117,6 +111,8 @@ export default function DashboardPage() {
       router.replace(CONFIG.ROUTES.LOGIN);
       return;
     }
+
+    queueMicrotask(() => setIsChecking(false));
 
     // Fetch menu items from backend /menu-items endpoint
     async function fetchMenu() {
@@ -156,6 +152,9 @@ export default function DashboardPage() {
 
     fetchMenu();
   }, [router]);
+
+  // Prevent rendering anything if authentication check is ongoing or unauthorized
+  if (isChecking) return null;
 
   const handleLogout = () => {
     removeTokens();
@@ -647,12 +646,13 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div className="pt-2 flex space-x-2">
-            <Button onClick={() => window.print()} variant="outline" className="w-full border-stone-300 text-stone-700 hover:bg-stone-100">
-              Print / Save PDF
-            </Button>
+          {/* Close button placed above the print button */}
+          <div className="pt-2 flex flex-col space-y-2">
             <Button onClick={() => setIsReceiptOpen(false)} className="w-full bg-stone-900 hover:bg-stone-800 text-stone-50">
               Close
+            </Button>
+            <Button onClick={() => window.print()} variant="outline" className="w-full border-stone-300 text-stone-700 hover:bg-stone-100">
+              Print / Save PDF
             </Button>
           </div>
         </DialogContent>
