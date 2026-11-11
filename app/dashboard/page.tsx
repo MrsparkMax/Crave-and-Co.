@@ -87,8 +87,6 @@ export default function DashboardPage() {
       return;
     }
 
-    queueMicrotask(() => setIsChecking(false));
-
     // Safe Token Validation & Decoding with Administrator Restriction for pamplona and fimperial
     try {
       if (token.split('.').length === 3) {
@@ -113,6 +111,8 @@ export default function DashboardPage() {
       router.replace(CONFIG.ROUTES.LOGIN);
       return;
     }
+
+    queueMicrotask(() => setIsChecking(false));
 
     // Fetch menu items from backend /menu-items endpoint
     async function fetchMenu() {
@@ -153,6 +153,7 @@ export default function DashboardPage() {
     fetchMenu();
   }, [router]);
 
+  // Prevent rendering anything if authentication check is ongoing or unauthorized
   if (isChecking) return null;
 
   const handleLogout = () => {
